@@ -39,8 +39,8 @@ const LandingPage = () => {
     },
     { 
       icon: <Target />, 
-      title: "Dynamic Skill Roadmaps", 
-      desc: "Generate personalized technical skill roadmaps. Follow visual milestone guides to master complex software, coding, or domain expertise." 
+      title: "Smart Job Recommendations", 
+      desc: "Get matched with perfectly-aligned job openings matching your skill profile, interests, and real-time resume ATS scoring." 
     }
   ];
 
@@ -264,7 +264,7 @@ const LandingPage = () => {
                   <span className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Free Tier</span>
                 </div>
                 <div className="space-y-3.5 mb-10">
-                  {['In-Place Resume Uploading', 'Instant ATS Resume Scoring', 'AI Speech/Text Mock Prep', 'Custom Milestone Roadmaps'].map((item, idx) => (
+                  {['In-Place Resume Uploading', 'Instant ATS Resume Scoring', 'AI Speech/Text Mock Prep', 'Smart Job Recommendations'].map((item, idx) => (
                     <div key={idx} className="flex items-center gap-3 font-bold text-sm text-slate-300">
                       <Check size={16} className="text-blue-500 flex-shrink-0" /> {item}
                     </div>
