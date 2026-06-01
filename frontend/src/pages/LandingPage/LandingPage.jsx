@@ -47,23 +47,23 @@ const LandingPage = () => {
   const hrFeatures = [
     { 
       icon: <Users2 />, 
-      title: "Neural Candidate Ranking", 
-      desc: "Stop manual resume scanning. Our intelligent ranking system sorts candidates by their semantic match, skills depth, and direct profile relevance." 
+      title: "Neural Candidate Matcher", 
+      desc: "Instantly semantic-rank candidate profiles. Our deep learning engine screens beyond keyword matches to evaluate core skill-depth and profile relevance with 99% accuracy." 
     },
     { 
       icon: <Zap />, 
-      title: "Smart Recruiter Tags", 
-      desc: "Dynamically tag applicants, manage tag color codes, and customize skill directories in a fully state-managed, fluid HR control panel." 
+      title: "Smart Tagging Directories", 
+      desc: "Manage candidate pipelines effortlessly. Build and assign custom color-coded recruitment tags and dynamically compile active skill taxonomy directories." 
     },
     { 
       icon: <BarChart3 />, 
-      title: "Growth Metrics & MoM Analytics", 
-      desc: "Track candidate pipeline trends with Month-over-Month volume analytics and department recruiting growth statistics." 
+      title: "AI Interview Evaluator", 
+      desc: "Review candidate mock test results. Access speech-to-text transcripts, localized rating statistics, dynamic feedback indicators, and instant recruiter summaries." 
     },
     { 
       icon: <Shield />, 
-      title: "Role-Gated Activity Logs", 
-      desc: "Monitor operations with comprehensive privacy-filtered activity audit trails logging all HR data changes securely." 
+      title: "MoM Growth & Activity Audits", 
+      desc: "Track pipeline flows with Month-over-Month growth statistics, active stream charts, and secure privacy-filtered HR activity audit trails." 
     }
   ];
 
