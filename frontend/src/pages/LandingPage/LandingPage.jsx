@@ -33,14 +33,14 @@ const LandingPage = () => {
       desc: "Upload your resume in-place and get graded instantly. Know your ATS match score against key skills and structural criteria before applying." 
     },
     { 
-      icon: <Award />, 
-      title: "Interactive Mock Interviews", 
-      desc: "Simulate speech & text interviews with our smart AI interviewer. Receive localized breakdown scores, detailed feedback, and key improvement suggestions." 
+      icon: <Target />, 
+      title: "Explore Job Openings", 
+      desc: "Search, view, and filter through active job listings. Find your dream role matching your skill profile and preferences seamlessly." 
     },
     { 
-      icon: <Target />, 
-      title: "Smart Job Recommendations", 
-      desc: "Get matched with perfectly-aligned job openings matching your skill profile, interests, and real-time resume ATS scoring." 
+      icon: <Check />, 
+      title: "Real-time Application Tracker", 
+      desc: "Track the active progress of your applications ('applied', 'review', 'interview', 'selected') through a beautifully organized user pipeline dashboard." 
     }
   ];
 
@@ -57,8 +57,13 @@ const LandingPage = () => {
     },
     { 
       icon: <BarChart3 />, 
-      title: "Growth Metrics & Audit Trails", 
-      desc: "Track candidate pipeline trends with Month-over-Month volume analytics and browse secure, privacy-filtered activity audit logs." 
+      title: "Growth Metrics & MoM Analytics", 
+      desc: "Track candidate pipeline trends with Month-over-Month volume analytics and department recruiting growth statistics." 
+    },
+    { 
+      icon: <Shield />, 
+      title: "Role-Gated Activity Logs", 
+      desc: "Monitor operations with comprehensive privacy-filtered activity audit trails logging all HR data changes securely." 
     }
   ];
 
@@ -215,7 +220,7 @@ const LandingPage = () => {
                 animate={{ opacity: 1, y: 0 }} 
                 exit={{ opacity: 0, y: -15 }} 
                 transition={{ duration: 0.3 }} 
-                className="grid md:grid-cols-3 gap-6"
+                className={`grid md:grid-cols-2 ${activeTab === 'candidate' ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-6`}
               >
                 {(activeTab === 'candidate' ? candidateFeatures : hrFeatures).map((feat, i) => (
                   <div 
@@ -264,7 +269,7 @@ const LandingPage = () => {
                   <span className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Free Tier</span>
                 </div>
                 <div className="space-y-3.5 mb-10">
-                  {['In-Place Resume Uploading', 'Instant ATS Resume Scoring', 'AI Speech/Text Mock Prep', 'Smart Job Recommendations'].map((item, idx) => (
+                  {['In-Place Resume Uploading', 'Instant ATS Resume Scoring', 'Explore Job Openings', 'Real-time Application Tracker'].map((item, idx) => (
                     <div key={idx} className="flex items-center gap-3 font-bold text-sm text-slate-300">
                       <Check size={16} className="text-blue-500 flex-shrink-0" /> {item}
                     </div>
