@@ -125,7 +125,7 @@ const LandingPage = () => {
             </h1>
             
             <p className="text-lg md:text-xl text-slate-400 max-w-2xl font-medium leading-relaxed mb-12">
-              Bridging the loop between top-tier candidates and enterprise recruiters. Simulate interactive mock interviews, analyze ATS resumes, and build dynamic tag workflows.
+              Bridging the loop between top-tier candidates and enterprise recruiters. Analyze ATS resumes, explore live job openings, and build dynamic tag workflows.
             </p>
             
             <div className="flex flex-col sm:flex-row items-center justify-center gap-5">
