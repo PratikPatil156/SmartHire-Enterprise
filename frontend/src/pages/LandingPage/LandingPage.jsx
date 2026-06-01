@@ -209,7 +209,7 @@ const LandingPage = () => {
                   </div>
                 ))}
               </div>
-              <Link to="/register-candidate" className="block w-full py-5 bg-blue-600 text-white text-center rounded-2xl font-black uppercase tracking-widest hover:bg-blue-500 transition-all shadow-xl shadow-blue-600/30">Start Enterprise</Link>
+              <Link to="/register-hr" className="block w-full py-5 bg-blue-600 text-white text-center rounded-2xl font-black uppercase tracking-widest hover:bg-blue-500 transition-all shadow-xl shadow-blue-600/30">Start Enterprise</Link>
             </div>
           </div>
         </div>
