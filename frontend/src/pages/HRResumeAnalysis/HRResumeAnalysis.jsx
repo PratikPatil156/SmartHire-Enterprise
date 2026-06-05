@@ -375,7 +375,6 @@ const HRResumeAnalysis = () => {
             </div>
           </>
         )}
-        )}
       </div>
 
       {/* Toast Notification */}

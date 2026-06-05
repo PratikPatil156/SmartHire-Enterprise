@@ -61,11 +61,10 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* --- STEP 1: LANDING PAGE (SABSE PEHLE YE DIKHEGA) --- */}
-        {/* Isse Navigate hatakar LandingPage set kar diya hai */}
+       
         <Route path="/" element={<LandingPage />} />
         
-        {/* --- STEP 2: AUTH LAYOUT (Login/Register) --- */}
+        
         <Route element={<AuthLayout />}>
           <Route path="/login-candidate" element={<LoginCandidate />} />
           <Route path="/register-candidate" element={<RegisterCandidate />} />
@@ -73,8 +72,7 @@ function App() {
           <Route path="/register-hr" element={<RegisterHR />} />
         </Route>
 
-        {/* --- STEP 3: MAIN APP (Dashboard/Sidebar logic) --- */}
-        {/* Dhyaan dein: Yahan path "/app" ya similar ho sakta hai, ya fir niche dashboard ko handle karein */}
+        
         <Route element={<MainLayout />}>
           
           <Route path="/dashboard" element={<DashboardSwitcher />} /> 

@@ -92,7 +92,7 @@ const AdminPanel = () => {
     { label: "Pending Reviews", value: String(pendingCount), icon: AlertCircle, color: "text-amber-600", bg: "bg-amber-50" },
   ];
 
-  // AI Parsing Speed metrics (average processing speed per PDF)
+ 
   const parseSpeed = 1.1;
   const parseSpeedPct = 92; // Peak engine capacity representation
 
