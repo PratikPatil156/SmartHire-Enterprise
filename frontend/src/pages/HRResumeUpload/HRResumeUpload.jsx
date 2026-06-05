@@ -5,6 +5,14 @@ const ResumeUpload = () => {
   // HR ke liye hum multiple files support karenge (Array state)
   const [files, setFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+    setTimeout(() => {
+      setToast(null);
+    }, 4000);
+  };
 
   const handleFileChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
@@ -13,7 +21,7 @@ const ResumeUpload = () => {
     const validFiles = selectedFiles.filter(file => file.type === "application/pdf");
     
     if (validFiles.length < selectedFiles.length) {
-      alert("Some files were skipped. Please upload PDF files only.");
+      showToast("Some files were skipped. Please upload PDF files only.", "error");
     }
     
     setFiles(prev => [...prev, ...validFiles]);
@@ -28,13 +36,13 @@ const ResumeUpload = () => {
     // Simulating Backend API call
     setTimeout(() => {
       setIsUploading(false);
-      alert(`${files.length} Resumes processed and added to Database!`);
+      showToast(`${files.length} Resumes processed and added to Database!`, "success");
       setFiles([]);
     }, 3000);
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 p-6">
+    <div className="max-w-5xl mx-auto space-y-8 p-4 sm:p-6 md:p-8">
       {/* Header Section */}
       <div className="flex justify-between items-end">
         <div>
@@ -140,8 +148,27 @@ const ResumeUpload = () => {
             </div>
             <h4 className="font-bold text-slate-800 text-sm">Auto-Tagging</h4>
             <p className="text-xs text-slate-500 mt-1">AI will automatically assign skills and seniority tags upon upload.</p>
-        </div>
       </div>
+
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed bottom-8 right-8 z-50 flex items-center gap-3 bg-slate-900 text-white px-5 py-4 rounded-2xl shadow-2xl border border-slate-800 animate-in slide-in-from-bottom-5 fade-in duration-300">
+          <div className={`p-1.5 rounded-lg ${
+            toast.type === 'success' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
+          }`}>
+            {toast.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+          </div>
+          <div>
+            <p className="text-sm font-extrabold tracking-tight">{toast.message}</p>
+          </div>
+          <button 
+            onClick={() => setToast(null)}
+            className="text-slate-400 hover:text-white transition-colors ml-4 p-1 hover:bg-slate-800 rounded-lg"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 };

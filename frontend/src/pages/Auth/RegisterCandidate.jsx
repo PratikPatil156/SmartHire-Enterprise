@@ -4,18 +4,62 @@
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
-import { UserPlus, Mail, Lock, User, ArrowRight } from 'lucide-react'; // Icons add kiye
+import { UserPlus, Mail, Lock, User, ArrowRight, Eye, EyeOff, CheckCircle2, AlertCircle, X } from 'lucide-react'; // Icons add kiye
 import { motion } from 'framer-motion'; // Animations ke liye
 import BackButton from "../../components/BackButton/BackButton"; // Sahi path add kiya
+
+import { authService } from '../../services/api';
+import { useState } from 'react';
 
 const RegisterCandidate = () => {
   const { register, handleSubmit } = useForm();
   const navigate = useNavigate();
+  const [errorMsg, setErrorMsg] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [toast, setToast] = useState(null);
 
-  const onSubmit = (data) => {
-    localStorage.setItem('candidate_user', JSON.stringify(data));
-    alert("Candidate Account Created! Ab aap login kar sakte hain.");
-    navigate('/login-candidate');
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+    setTimeout(() => {
+      setToast(null);
+    }, 4000);
+  };
+
+  const onSubmit = async (data) => {
+    setErrorMsg("");
+    if (data.password !== data.confirmPassword) {
+      setErrorMsg("Passwords do not match!");
+      return;
+    }
+    setLoading(true);
+    try {
+      const registerData = {
+        name: data.fullName,
+        email: data.email,
+        password: data.password,
+        role: 'candidate'
+      };
+      await authService.register(registerData);
+      
+      // Seed default local representation for fallback credentials checks
+      localStorage.setItem('candidate_user', JSON.stringify({
+        email: data.email,
+        password: data.password,
+        fullName: data.fullName
+      }));
+      
+      showToast("Candidate Account Created successfully! Redirecting to login...", "success");
+      setTimeout(() => {
+        navigate('/login-candidate', { state: { message: "Candidate Account Created successfully!", type: "success" } });
+      }, 2000);
+    } catch (error) {
+      console.error(error);
+      setErrorMsg(error.message || error || "Registration failed. Server Error!");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -79,18 +123,50 @@ const RegisterCandidate = () => {
             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors" size={18} />
             <input 
               {...register("password")} 
-              type="password" 
+              type={showPassword ? "text" : "password"} 
               placeholder="Password" 
               required 
-              className="w-full pl-12 pr-4 py-4 bg-[#0f172a] border border-slate-700 text-white rounded-2xl outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all placeholder:text-slate-600" 
+              className="w-full pl-12 pr-12 py-4 bg-[#0f172a] border border-slate-700 text-white rounded-2xl outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all placeholder:text-slate-600" 
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           </div>
+
+          <div className="relative group">
+            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors" size={18} />
+            <input 
+              {...register("confirmPassword")} 
+              type={showConfirmPassword ? "text" : "password"} 
+              placeholder="Confirm Password" 
+              required 
+              className="w-full pl-12 pr-12 py-4 bg-[#0f172a] border border-slate-700 text-white rounded-2xl outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all placeholder:text-slate-600" 
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-350 transition-colors"
+            >
+              {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+
+          {errorMsg && (
+            <p className="text-red-500 text-xs font-bold text-center mt-2 bg-red-500/10 py-2.5 rounded-xl border border-red-500/20">
+              {errorMsg}
+            </p>
+          )}
 
           <button 
             type="submit" 
-            className="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl shadow-blue-900/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            disabled={loading}
+            className="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl shadow-blue-900/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            CREATE CANDIDATE ACCOUNT <ArrowRight size={18} />
+            {loading ? "Creating Account..." : <>CREATE CANDIDATE ACCOUNT <ArrowRight size={18} /></>}
           </button>
         </form>
 
@@ -101,6 +177,30 @@ const RegisterCandidate = () => {
           </Link>
         </p>
       </motion.div>
+      
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed bottom-8 right-8 z-50 flex items-center gap-3 bg-slate-900 text-white px-5 py-4 rounded-2xl shadow-2xl border border-slate-800 animate-in slide-in-from-bottom-5 fade-in duration-300">
+          <div className={`p-1.5 rounded-lg ${
+            toast.type === 'success' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
+          }`}>
+            {toast.type === 'success' ? (
+              <CheckCircle2 className="w-5 h-5" />
+            ) : (
+              <AlertCircle className="w-5 h-5" />
+            )}
+          </div>
+          <div>
+            <p className="text-sm font-extrabold tracking-tight">{toast.message}</p>
+          </div>
+          <button 
+            onClick={() => setToast(null)}
+            className="text-slate-400 hover:text-white transition-colors ml-4 p-1 hover:bg-slate-800 rounded-lg"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 };

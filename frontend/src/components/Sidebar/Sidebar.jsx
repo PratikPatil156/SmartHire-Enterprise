@@ -7,7 +7,7 @@ import {
   AlertCircle, X
 } from 'lucide-react';
 
-const Sidebar = ({ isCollapsed }) => {
+const Sidebar = ({ isCollapsed, onClose }) => {
   const navigate = useNavigate();
   const [toast, setToast] = useState(null);
 
@@ -81,15 +81,28 @@ const Sidebar = ({ isCollapsed }) => {
     <div className={`bg-white h-screen flex flex-col p-4 text-slate-500 border-r border-slate-100 sticky top-0 left-0 z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)] transition-all duration-300 flex-shrink-0 ${isCollapsed ? 'w-20' : 'w-64'}`}>
       
       {/* Logo Section */}
-      <div className="flex items-center gap-3 px-3 mb-10 mt-2">
-        <div className="bg-blue-600 p-2.5 rounded-[14px] shadow-lg shadow-blue-100 flex-shrink-0">
-          <Bot className="text-white" size={22} />
-        </div>
-        {!isCollapsed && (
-          <div>
-            <h1 className="text-slate-800 font-black text-sm leading-tight uppercase tracking-tighter">AI Resume</h1>
-            <p className="text-[10px] text-blue-500 font-black tracking-widest uppercase">Enterprise</p>
+      <div className="flex items-center justify-between px-3 mb-10 mt-2">
+        <div className="flex items-center gap-3">
+          <div className="bg-blue-600 p-2.5 rounded-[14px] shadow-lg shadow-blue-100 flex-shrink-0">
+            <Bot className="text-white" size={22} />
           </div>
+          {!isCollapsed && (
+            <div>
+              <h1 className="text-slate-800 font-black text-sm leading-tight uppercase tracking-tighter">AI Resume</h1>
+              <p className="text-[10px] text-blue-500 font-black tracking-widest uppercase">Enterprise</p>
+            </div>
+          )}
+        </div>
+        
+        {/* Mobile/Tablet Close Button */}
+        {onClose && (
+          <button 
+            onClick={onClose}
+            className="lg:hidden p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"
+            aria-label="Close sidebar"
+          >
+            <X size={18} />
+          </button>
         )}
       </div>
 
@@ -107,6 +120,7 @@ const Sidebar = ({ isCollapsed }) => {
                 <NavLink
                   key={i}
                   to={item.path}
+                  onClick={onClose}
                   className={({ isActive }) => 
                     `flex items-center gap-3 px-4 py-3 rounded-[16px] cursor-pointer transition-all duration-300 group ${
                       isActive 

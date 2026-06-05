@@ -1,23 +1,58 @@
 
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { Link, useNavigate } from 'react-router-dom';
-import { User, Lock, Mail, ArrowRight, ChevronLeft } from 'lucide-react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { User, Lock, Mail, ArrowRight, ChevronLeft, Eye, EyeOff, CheckCircle2, AlertCircle, X } from 'lucide-react';
 import { motion } from 'framer-motion';
+
+import { authService } from '../../services/api';
+import { useState } from 'react';
 
 const LoginCandidate = () => {
   const { register, handleSubmit } = useForm();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [errorMsg, setErrorMsg] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [toast, setToast] = useState(null);
 
-  const onSubmit = (data) => {
-    const savedUser = JSON.parse(localStorage.getItem('candidate_user'));
-    
-    if (savedUser && savedUser.email === data.email && savedUser.password === data.password) {
-      localStorage.setItem('role', 'candidate');
+  useEffect(() => {
+    if (location.state?.message) {
+      setToast({ message: location.state.message, type: location.state.type || "success" });
+      window.history.replaceState({}, document.title);
+      const timer = setTimeout(() => {
+        setToast(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [location]);
+
+  const onSubmit = async (data) => {
+    setErrorMsg("");
+    setLoading(true);
+    try {
+      const res = await authService.login({
+        email: data.email,
+        password: data.password
+      });
+      
+      if (res.user.role !== 'candidate') {
+        setErrorMsg("This email is registered as HR. Please login as HR.");
+        setLoading(false);
+        return;
+      }
+
+      localStorage.setItem('role', res.user.role);
+      localStorage.setItem('token', res.token);
+      localStorage.setItem('user', JSON.stringify(res.user));
       navigate('/dashboard');
-    } else {
-      alert("Invalid Credentials! Kya aapne Candidate account banaya hai?");
+    } catch (error) {
+      console.error(error);
+      setErrorMsg(error.message || error || "Invalid Email or Password!");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -34,10 +69,10 @@ const LoginCandidate = () => {
         </div>
         <span className="font-bold text-sm tracking-widest uppercase">Back to Home</span>
       </Link>
-
+ 
       {/* Background Glow Effect */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none" />
-
+ 
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -50,7 +85,7 @@ const LoginCandidate = () => {
           <h2 className="text-3xl font-black text-white tracking-tight">Welcome Back</h2>
           <p className="text-slate-400 mt-2 font-medium">Candidate Login</p>
         </div>
-
+ 
         {/* Role Switcher Toggle */}
         <div className="flex bg-[#0f172a] p-1.5 rounded-2xl mb-8 border border-slate-800 shadow-inner">
           <button className="flex-1 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold shadow-lg transition-all">
@@ -63,7 +98,7 @@ const LoginCandidate = () => {
             HR / Recruiter
           </Link>
         </div>
-
+ 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           <div className="relative group">
             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors" size={18} />
@@ -75,23 +110,37 @@ const LoginCandidate = () => {
               className="w-full pl-12 pr-4 py-4 bg-[#0f172a] border border-slate-700 text-white rounded-2xl outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all placeholder:text-slate-600" 
             />
           </div>
-
+ 
           <div className="relative group">
             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors" size={18} />
             <input 
               {...register("password")} 
-              type="password" 
+              type={showPassword ? "text" : "password"} 
               placeholder="Password" 
               required 
-              className="w-full pl-12 pr-4 py-4 bg-[#0f172a] border border-slate-700 text-white rounded-2xl outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all placeholder:text-slate-600" 
+              className="w-full pl-12 pr-12 py-4 bg-[#0f172a] border border-slate-700 text-white rounded-2xl outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all placeholder:text-slate-600" 
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-350 transition-colors"
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           </div>
+
+          {errorMsg && (
+            <p className="text-red-500 text-xs font-bold text-center mt-2 bg-red-500/10 py-2.5 rounded-xl border border-red-500/20">
+              {errorMsg}
+            </p>
+          )}
 
           <button 
             type="submit" 
-            className="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl shadow-blue-900/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            disabled={loading}
+            className="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl shadow-blue-900/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            Sign In <ArrowRight size={18} />
+            {loading ? "Signing In..." : <>Sign In <ArrowRight size={18} /></>}
           </button>
         </form>
 
@@ -104,6 +153,30 @@ const LoginCandidate = () => {
           </p>
         </div>
       </motion.div>
+
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed bottom-8 right-8 z-50 flex items-center gap-3 bg-slate-900 text-white px-5 py-4 rounded-2xl shadow-2xl border border-slate-800 animate-in slide-in-from-bottom-5 fade-in duration-300">
+          <div className={`p-1.5 rounded-lg ${
+            toast.type === 'success' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
+          }`}>
+            {toast.type === 'success' ? (
+              <CheckCircle2 className="w-5 h-5" />
+            ) : (
+              <AlertCircle className="w-5 h-5" />
+            )}
+          </div>
+          <div>
+            <p className="text-sm font-extrabold tracking-tight">{toast.message}</p>
+          </div>
+          <button 
+            onClick={() => setToast(null)}
+            className="text-slate-400 hover:text-white transition-colors ml-4 p-1 hover:bg-slate-800 rounded-lg"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 };

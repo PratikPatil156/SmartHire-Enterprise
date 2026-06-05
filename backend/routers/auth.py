@@ -1,5 +1,6 @@
 import io
 import bcrypt
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from pydantic import BaseModel, EmailStr
 from pypdf import PdfReader
@@ -14,6 +15,7 @@ class RegisterSchema(BaseModel):
     email: EmailStr
     password: str
     role: str
+    company: Optional[str] = None
 
 class LoginSchema(BaseModel):
     email: EmailStr
@@ -29,8 +31,8 @@ def register(user: RegisterSchema, db=Depends(get_db)):
     
     hashed_password = bcrypt.hashpw(user.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     
-    query = "INSERT INTO users (name, email, password, role) VALUES (%s, %s, %s, %s)"
-    cursor.execute(query, (user.name, user.email, hashed_password, user.role))
+    query = "INSERT INTO users (name, email, password, role, company) VALUES (%s, %s, %s, %s, %s)"
+    cursor.execute(query, (user.name, user.email, hashed_password, user.role, user.company))
     conn.commit()
     log_activity(db, user.name, "Registered", user.name, user.role.capitalize(), f"{user.role.capitalize()} account created successfully.", "auth")
     return {"message": "Registration Successful!"}
@@ -51,8 +53,8 @@ def login(credentials: LoginSchema, db=Depends(get_db)):
     if not bcrypt.checkpw(credentials.password.encode('utf-8'), user['password'].encode('utf-8')):
         raise HTTPException(status_code=400, detail="Invalid Email or Password!")
     
-    # JWT Token banao jisme user id aur role chhupa hoga
-    token = create_access_token({"user_id": user['id'], "role": user['role']})
+    # JWT Token banao jisme user id, role, aur company name embedded hoga
+    token = create_access_token({"user_id": user['id'], "role": user['role'], "company": user.get('company')})
     log_activity(db, user['name'], "Logged In", user['name'], user['role'].capitalize(), f"{user['role'].capitalize()} logged in successfully.", "auth")
     
     return {
@@ -62,7 +64,8 @@ def login(credentials: LoginSchema, db=Depends(get_db)):
             "id": user['id'],
             "name": user['name'],
             "email": user['email'],
-            "role": user['role']
+            "role": user['role'],
+            "company": user.get('company')
         }
     }
 
@@ -157,14 +160,12 @@ async def upload_resume(user_id: int, file: UploadFile = File(...), db=Depends(g
         if cursor.fetchone():
             cursor.execute("""
                 UPDATE user_profiles 
-                SET phone = %s, location = %s, skills = %s, placement_ready = %s, 
-                    profile_status = %s, profile_completed = %s, backend_progress = %s, 
-                    frontend_progress = %s, interview_progress = %s, placement_insights_title = %s, 
-                    placement_insights_desc = %s 
+                SET phone = %s, location = %s, skills = %s 
                 WHERE user_id = %s
             """, (
-                parsed_phone, parsed_location, skills_str, "95%", "Active", "18/20", 75, 90, 30, 
-                "Placement Ready!", "Your profile is in the top 5% for Full Stack roles this week. Complete 2 more mock interviews to boost visibility.",
+                parsed_phone if parsed_phone != "Not Specified" else "",
+                parsed_location if parsed_location != "Not Specified" else "",
+                skills_str,
                 user_id
             ))
         else:
@@ -181,10 +182,20 @@ async def upload_resume(user_id: int, file: UploadFile = File(...), db=Depends(g
                  frontend_progress, interview_progress, placement_insights_title, placement_insights_desc) 
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (
-                user_id, parsed_phone, parsed_location, "SmartHire Candidate",
-                student_id, skills_str, "95%", "Active", "18/20",
-                75, 90, 30, "Placement Ready!",
-                "Your profile is in the top 5% for Full Stack roles this week. Complete 2 more mock interviews to boost visibility."
+                user_id,
+                parsed_phone if parsed_phone != "Not Specified" else "",
+                parsed_location if parsed_location != "Not Specified" else "",
+                "SmartHire Candidate",
+                student_id,
+                skills_str,
+                None,
+                "Pending",
+                None,
+                0,
+                0,
+                0,
+                None,
+                None
             ))
 
         conn.commit()

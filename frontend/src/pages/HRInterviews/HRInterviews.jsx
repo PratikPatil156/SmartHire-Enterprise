@@ -40,6 +40,7 @@ const HRInterviews = () => {
   const [toast, setToast] = useState(null);
 
   const [copiedId, setCopiedId] = useState(null);
+  const [decisionModal, setDecisionModal] = useState({ isOpen: false, status: "" });
 
   // --- FETCHING DATA ---
   const fetchInterviews = async () => {
@@ -224,20 +225,20 @@ const HRInterviews = () => {
     setActiveDrawerCandidate(int);
     setRescheduleDate(normalizeDateStr(int.date));
     setRescheduleTime(int.time);
-    setRescheduleLink(int.meet_link || "https://meet.google.com/new");
+    setRescheduleLink(int.meet_link || "https://meet.ffmuc.net/SmartHire-abc-defg-hij");
   };
 
   const handleStartCall = (int) => {
-    const link = int.meet_link || "https://meet.google.com/new";
+    const link = int.meet_link || "https://meet.ffmuc.net/SmartHire-abc-defg-hij";
     window.open(link, "_blank");
     
     const subject = encodeURIComponent(`SmartHire Video Interview Invitation - ${int.role}`);
-    const body = encodeURIComponent(`Hi ${int.name},\n\nYour video interview for the ${int.role} position is about to begin. Please join the Google Meet room using this link:\n${link}\n\nLooking forward to speaking with you!\n\nBest regards,\nHR Recruiter (SmartHire)`);
+    const body = encodeURIComponent(`Hi ${int.name},\n\nYour video interview for the ${int.role} position is about to begin. Please join the video interview room using this link:\n${link}\n\nLooking forward to speaking with you!\n\nBest regards,\nHR Recruiter (SmartHire)`);
     window.location.href = `mailto:${int.email}?subject=${subject}&body=${body}`;
   };
 
   const copyCalendarInvite = (int) => {
-    const meetUrl = int.meet_link || "https://meet.google.com/new";
+    const meetUrl = int.meet_link || "https://meet.ffmuc.net/SmartHire-abc-defg-hij";
     const inviteMessage = `Subject: Interview Invitation - ${int.role} (SmartHire)
 
 Hi ${int.name},
@@ -246,7 +247,7 @@ You are invited to join the video interview scheduled for:
 Date: ${formatDisplayDate(int.date)}
 Time: ${int.time}
 
-Please join the Google Meet link below at the scheduled time:
+Please join the Jitsi Meet video link below at the scheduled time:
 Link: ${meetUrl}
 
 If you have any questions or need to reschedule, please reply directly.
@@ -271,19 +272,21 @@ HR Recruitment Team`;
     
     try {
       setRescheduling(true);
-      await appsService.updateStatus(activeDrawerCandidate.id, {
+      const res = await appsService.updateStatus(activeDrawerCandidate.id, {
         status: "Shortlisted",
         interview_date: rescheduleDate,
         interview_time: rescheduleTime,
         interview_meet_link: rescheduleLink
       });
 
+      const newPasscode = res?.interview_code || activeDrawerCandidate.interview_code;
+
       showToast("Interview rescheduled successfully!", "success");
 
       // Update local listing state dynamically
       setInterviews(prev => prev.map(item => 
         item.id === activeDrawerCandidate.id 
-          ? { ...item, date: rescheduleDate, time: rescheduleTime, meet_link: rescheduleLink }
+          ? { ...item, date: rescheduleDate, time: rescheduleTime, meet_link: rescheduleLink, interview_code: newPasscode }
           : item
       ));
 
@@ -292,7 +295,8 @@ HR Recruitment Team`;
         ...prev,
         date: rescheduleDate,
         time: rescheduleTime,
-        meet_link: rescheduleLink
+        meet_link: rescheduleLink,
+        interview_code: newPasscode
       }));
     } catch (err) {
       showToast(err.message || err || "Rescheduling failed.", "error");
@@ -302,18 +306,20 @@ HR Recruitment Team`;
   };
 
   const submitHiringDecision = async (status) => {
-    if (!window.confirm(`Are you sure you want to mark ${activeDrawerCandidate.name} as '${status}'?`)) {
+    if (!decisionModal.isOpen) {
+      setDecisionModal({ isOpen: true, status });
       return;
     }
 
     try {
       setUpdatingDecision(true);
-      await appsService.updateStatus(activeDrawerCandidate.id, { status });
-      showToast(`Hiring pipeline updated: Candidate marked as ${status}!`, "success");
+      await appsService.updateStatus(activeDrawerCandidate.id, { status: decisionModal.status });
+      showToast(`Hiring pipeline updated: Candidate marked as ${decisionModal.status}!`, "success");
       
       // Remove candidate from interviews view
       setInterviews(prev => prev.filter(item => item.id !== activeDrawerCandidate.id));
       setActiveDrawerCandidate(null);
+      setDecisionModal({ isOpen: false, status: "" });
     } catch (err) {
       showToast(err.message || err || "Failed to submit recruiter decision.", "error");
     } finally {
@@ -345,7 +351,7 @@ HR Recruitment Team`;
   const groupedAgenda = getGroupedAgenda();
 
   return (
-    <div className="p-8 bg-[#f8fafc] min-h-screen text-slate-600 w-full font-sans relative overflow-x-hidden">
+    <div className="p-4 sm:p-6 md:p-8 bg-[#f8fafc] min-h-screen text-slate-600 w-full font-sans relative overflow-x-hidden">
       
       {/* --- FLOATING TOAST NOTIFICATION --- */}
       {toast && (
@@ -616,12 +622,14 @@ HR Recruitment Team`;
               {activeTab === "list" && (
                 <div className="bg-white rounded-[2rem] border border-slate-100 overflow-hidden shadow-sm flex flex-col">
                   
-                  <div className="overflow-x-auto">
+                  {/* Desktop Table View */}
+                  <div className="hidden md:block overflow-x-auto">
                     <table className="w-full text-left">
                       <thead className="bg-slate-50/50 text-slate-400 text-[10px] font-black uppercase tracking-[0.15em] border-b border-slate-100">
                         <tr>
                           <th className="px-8 py-5">Candidate</th>
                           <th className="px-8 py-5">Date & Time</th>
+                          <th className="px-8 py-5">Access Passcode</th>
                           <th className="px-8 py-5">Status</th>
                           <th className="px-8 py-5">ATS Score</th>
                           <th className="px-8 py-5 text-right">Actions</th>
@@ -651,6 +659,13 @@ HR Recruitment Team`;
                             <td className="px-8 py-5">
                               <div className="text-slate-700 text-xs font-extrabold">{formatDisplayDate(int.date)}</div>
                               <div className="text-blue-500 text-[10px] font-bold mt-0.5">{int.time}</div>
+                            </td>
+
+                            {/* Access Passcode */}
+                            <td className="px-8 py-5">
+                              <span className="font-mono bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-lg text-xs font-black text-slate-700">
+                                {int.interview_code || '------'}
+                              </span>
                             </td>
 
                             {/* Real Status */}
@@ -697,13 +712,83 @@ HR Recruitment Team`;
                         {/* EMPTY STATE */}
                         {filteredInterviews.length === 0 && (
                           <tr>
-                            <td colSpan="5" className="p-12 text-center text-slate-400 font-semibold text-xs">
+                            <td colSpan="6" className="p-12 text-center text-slate-400 font-semibold text-xs">
                               No scheduled interviews match active filters. Try adjusting calendar dates or search criteria.
                             </td>
                           </tr>
                         )}
                       </tbody>
                     </table>
+                  </div>
+
+                  {/* Mobile Cards View */}
+                  <div className="grid grid-cols-1 gap-4 p-4 md:hidden">
+                    {paginatedInterviews.map((int) => (
+                      <div 
+                        key={int.id} 
+                        onClick={() => handleOpenDrawer(int)}
+                        className="bg-slate-50/50 p-5 rounded-[20px] border border-slate-100/60 space-y-4 text-left cursor-pointer"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-white border border-slate-200 text-blue-600 flex items-center justify-center text-xs font-black shadow-sm shrink-0">
+                              {int.name.charAt(0)}
+                            </div>
+                            <div>
+                              <p className="text-slate-800 font-bold text-sm leading-tight">{int.name}</p>
+                              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">{int.role}</p>
+                            </div>
+                          </div>
+                          <span className={`px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest border shrink-0 
+                            ${int.status === 'Upcoming' ? 'bg-blue-50 text-blue-700 border-blue-100' : 
+                              int.status === 'In Progress' ? 'bg-amber-50 text-amber-700 border-amber-100' : 
+                              'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
+                            {int.status}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-3 text-xs">
+                          <div>
+                            <p className="text-[9px] text-slate-400 font-bold uppercase">Scheduled slot</p>
+                            <p className="font-bold text-slate-700 mt-0.5">{formatDisplayDate(int.date)}</p>
+                            <p className="text-[10px] text-blue-500 font-semibold">{int.time}</p>
+                          </div>
+                          <div>
+                            <p className="text-[9px] text-slate-400 font-bold uppercase">Passcode</p>
+                            <p className="font-mono font-black text-slate-800 mt-1 bg-white border border-slate-200 px-2 py-0.5 rounded w-fit text-[11px]">
+                              {int.interview_code || '------'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between border-t border-slate-100 pt-3 gap-2">
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white rounded-lg text-[10px] font-black text-slate-700 border border-slate-100">
+                            <span>⭐</span> {int.rating} Rating
+                          </div>
+                          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                            <button 
+                              onClick={() => handleStartCall(int)}
+                              className="p-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded-lg shadow-sm flex items-center gap-1 px-2 py-1 text-[10px] font-bold" 
+                            >
+                              <ExternalLink size={11} />
+                              <span>Join</span>
+                            </button>
+                            <button 
+                              onClick={() => copyCalendarInvite(int)}
+                              className="p-1.5 bg-white text-slate-500 hover:text-slate-800 rounded-lg border border-slate-200"
+                            >
+                              {copiedId === int.id ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {filteredInterviews.length === 0 && (
+                      <div className="text-center py-10 text-slate-400 text-xs italic">
+                        No scheduled interviews match active filters.
+                      </div>
+                    )}
                   </div>
 
                   {/* PREMIUM SCALABILITY PAGINATION CONTROLS */}
@@ -784,16 +869,23 @@ HR Recruitment Team`;
                               </div>
                             </div>
 
-                            {/* Time and Status Pill */}
-                            <div className="flex items-center gap-6">
-                              <div>
-                                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Scheduled</p>
-                                <p className="text-slate-800 font-extrabold text-xs mt-0.5 flex items-center gap-1">
-                                  <Clock size={12} className="text-blue-500" /> {int.time}
-                                </p>
-                              </div>
-                              
-                              <div>
+                             {/* Time and Status Pill */}
+                             <div className="flex items-center gap-6">
+                               <div>
+                                 <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Scheduled</p>
+                                 <p className="text-slate-800 font-extrabold text-xs mt-0.5 flex items-center gap-1">
+                                   <Clock size={12} className="text-blue-500" /> {int.time}
+                                 </p>
+                               </div>
+
+                               <div>
+                                 <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Passcode</p>
+                                 <p className="font-mono text-slate-800 font-extrabold text-xs mt-0.5">
+                                   {int.interview_code || '------'}
+                                 </p>
+                               </div>  
+                               
+                               <div>
                                 <span className={`px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest border 
                                   ${int.status === 'Upcoming' ? 'bg-blue-50 text-blue-700 border-blue-100' : 
                                     int.status === 'In Progress' ? 'bg-amber-50 text-amber-700 border-amber-100' : 
@@ -911,14 +1003,22 @@ HR Recruitment Team`;
               {/* Card 2: Live Meeting Workspace */}
               <div className="bg-blue-50/20 p-5 rounded-[1.8rem] border border-blue-200/20 space-y-4">
                 <h4 className="text-[10px] font-black uppercase tracking-wider text-blue-600 flex items-center gap-1.5">
-                  <Video size={12} /> Live Google Meet Room
+                  <Video size={12} /> Live Jitsi Meet Room
                 </h4>
 
-                <div className="space-y-1">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Scheduled Slot</span>
-                  <span className="text-xs font-black text-slate-800 leading-tight block">
-                    {formatDisplayDate(activeDrawerCandidate.date)} at <span className="text-blue-600">{activeDrawerCandidate.time}</span>
-                  </span>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Scheduled Slot</span>
+                    <span className="text-xs font-black text-slate-800 leading-tight block">
+                      {formatDisplayDate(activeDrawerCandidate.date)} at <span className="text-blue-600">{activeDrawerCandidate.time}</span>
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Access Passcode</span>
+                    <span className="text-xs font-mono font-black text-slate-800 leading-none block bg-slate-200/50 px-2.5 py-1 rounded w-fit border border-slate-300/30">
+                      {activeDrawerCandidate.interview_code || '------'}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="flex gap-2">
@@ -971,7 +1071,7 @@ HR Recruitment Team`;
                       type="text" 
                       value={rescheduleLink}
                       onChange={(e) => setRescheduleLink(e.target.value)}
-                      placeholder="https://meet.google.com/..."
+                      placeholder="https://meet.ffmuc.net/SmartHire-..."
                       className="w-full bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500/10 text-slate-700"
                     />
                   </div>
@@ -1017,6 +1117,47 @@ HR Recruitment Team`;
           </>
         )}
       </div>
+
+      {/* --- DECISION CONFIRMATION MODAL --- */}
+      {decisionModal.isOpen && (
+        <div className="fixed inset-0 bg-[#0f172a]/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2.5rem] border border-slate-100 p-8 max-w-sm w-full shadow-2xl animate-in zoom-in duration-200 text-center">
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+              decisionModal.status === 'Hired' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+            }`}>
+              {decisionModal.status === 'Hired' ? <UserCheck size={28} /> : <UserX size={28} />}
+            </div>
+            <h3 className="text-lg font-black text-slate-800 tracking-tight">
+              {decisionModal.status === 'Hired' ? "Confirm Hiring?" : "Confirm Rejection?"}
+            </h3>
+            <p className="text-slate-500 text-xs mt-2 leading-relaxed">
+              Are you sure you want to mark <strong>{activeDrawerCandidate?.name}</strong> as <strong className={decisionModal.status === 'Hired' ? 'text-emerald-600' : 'text-rose-600'}>{decisionModal.status}</strong>? This decision will update their active screening pipeline status.
+            </p>
+            
+            <div className="flex gap-4 mt-6">
+              <button 
+                type="button"
+                onClick={() => setDecisionModal({ isOpen: false, status: "" })}
+                className="flex-1 py-3.5 bg-slate-50 text-slate-500 hover:bg-slate-100 rounded-2xl text-xs font-black uppercase tracking-widest transition-all"
+              >
+                Cancel
+              </button>
+              <button 
+                type="button"
+                onClick={() => submitHiringDecision(decisionModal.status)}
+                disabled={updatingDecision}
+                className={`flex-1 py-3.5 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg transition-all flex items-center justify-center ${
+                  decisionModal.status === 'Hired' 
+                    ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20' 
+                    : 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/20'
+                }`}
+              >
+                {updatingDecision ? <Loader2 size={16} className="animate-spin" /> : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

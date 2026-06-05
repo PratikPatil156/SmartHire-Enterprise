@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+PyJWT
+python-dotenv
+mysql-connector-python
+bcrypt
+pydantic[email]
+pypdf
+python-multipart

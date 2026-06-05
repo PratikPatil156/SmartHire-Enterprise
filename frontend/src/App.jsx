@@ -18,7 +18,6 @@ import JobOpening from './pages/JobOpening/JobOpening';
 import Candidates from './pages/Candidates/Candidates';
 import CandidatePortal from './pages/CandidatePortal/CandidatePortal';
 import AdminPanel from './pages/AdminPanel/AdminPanel';
-import InterviewPrep from './pages/InterviewPrep/InterviewPrep';
 import HRInterviews from './pages/HRInterviews/HRInterviews'; 
 import JobRecommendations from './pages/JobRecommendations/JobRecommendations';
 import HRJobRecommendations from './pages/JobRecommendations/HRJobRecommendations'; 
@@ -27,7 +26,6 @@ import StudentProfile from './pages/Profile/StudentProfile';
 import Dashboard from './pages/Dashboard/Dashboard';
 import SkillsAndTags from './pages/SkillsAndTags/SkillsAndTags';
 import ActivityLog from './pages/ActivityLog/ActivityLog';
-import ResumeUpload from './pages/ResumeUpload/ResumeUpload';
 import MyApplications from './pages/MyApplications/MyApplications'; 
 import SavedJobs from './pages/SavedJobs/SavedJobs'; 
 import LandingPage from './pages/LandingPage/LandingPage';
@@ -40,7 +38,7 @@ const DashboardSwitcher = () => {
 
 const InterviewSwitcher = () => {
   const role = localStorage.getItem('role');
-  return role === 'hr' ? <HRInterviews /> : <InterviewPrep />;
+  return role === 'hr' ? <HRInterviews /> : <Navigate to="/dashboard" replace />;
 };
 
 const JobRecSwitcher = () => {
@@ -84,7 +82,6 @@ function App() {
           <Route path="/job-recommendations" element={<JobRecSwitcher />} />
           <Route path="/profile" element={<ProfileSwitcher />} />
           <Route path="/resume-analysis" element={<ResumeAnalysisSwitcher />} />
-          <Route path="/resume-upload" element={<ResumeUpload />} />
           
           {/* --- CANDIDATE ONLY --- */}
           <Route path="/applications" element={<MyApplications />} />

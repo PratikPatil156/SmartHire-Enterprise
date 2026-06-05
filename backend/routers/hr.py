@@ -54,21 +54,21 @@ def get_hr_dashboard(current_user=Depends(get_current_user), db=Depends(get_db))
     conn, cursor = db
     hr_id = current_user.get("user_id")
     
-    # A. Total Candidates count applied to THIS HR's jobs
+    # A. Total Candidates count applied to THIS HR's jobs (counts total applications)
     cursor.execute("""
-        SELECT COUNT(DISTINCT a.candidate_id) AS total 
+        SELECT COUNT(a.id) AS total 
         FROM applications a 
         JOIN jobs j ON a.job_id = j.id 
         WHERE j.hr_id = %s
     """, (hr_id,))
     total_candidates = cursor.fetchone()["total"]
 
-    # B. Screened Resumes count applied to THIS HR's jobs
+    # B. Screened Resumes count applied to THIS HR's jobs (counts total applications with resumes)
     cursor.execute("""
-        SELECT COUNT(DISTINCT r.id) AS total 
-        FROM resumes r 
-        JOIN applications a ON r.candidate_id = a.candidate_id 
+        SELECT COUNT(a.id) AS total 
+        FROM applications a 
         JOIN jobs j ON a.job_id = j.id 
+        JOIN resumes r ON a.candidate_id = r.candidate_id
         WHERE j.hr_id = %s
     """, (hr_id,))
     screened_resumes = cursor.fetchone()["total"]
@@ -125,6 +125,11 @@ def get_hr_dashboard(current_user=Depends(get_current_user), db=Depends(get_db))
         # Extract skills dynamically from resume text
         from parser_utils import extract_skills
         skills_matched = extract_skills(text, cursor)
+        
+        # Prioritize skills that match the job requirements (case-insensitive)
+        if reqs:
+            reqs_lower = [r.lower() for r in reqs]
+            skills_matched.sort(key=lambda s: (0 if s.lower() in reqs_lower else 1, -len(s)))
                 
         recent_candidates.append({
             "id": row["id"],
@@ -180,28 +185,46 @@ def get_hr_dashboard(current_user=Depends(get_current_user), db=Depends(get_db))
     if not pie_data:
       pie_data = []
 
-    # G. Recent Activities
+    # G. Recent Activities (ordered by update time to reflect live status changes)
     cursor.execute("""
-        SELECT a.applied_at, u.name AS candidate, j.title AS job, a.status
+        SELECT a.updated_at, u.name AS candidate, j.title AS job, a.status
         FROM applications a
         JOIN users u ON a.candidate_id = u.id
         JOIN jobs j ON a.job_id = j.id
         WHERE j.hr_id = %s
-        ORDER BY a.applied_at DESC
+        ORDER BY a.updated_at DESC
         LIMIT 4
     """, (hr_id,))
     app_activities = cursor.fetchall()
     activities = []
     for app in app_activities:
         status = app["status"]
-        title = "New application submitted" if status == "Applied" else f"Candidate {status.lower()}"
-        sub = f"{app['candidate']} applied for {app['job']}"
-        icon_type = "plus" if status == "Applied" else ("check" if status == "Shortlisted" else ("hired" if status == "Hired" else "close"))
+        if status == "Applied":
+            title = "New application submitted"
+            sub = f"{app['candidate']} applied for {app['job']}"
+            icon_type = "plus"
+        elif status == "Shortlisted":
+            title = "Candidate shortlisted"
+            sub = f"{app['candidate']} shortlisted for {app['job']}"
+            icon_type = "check"
+        elif status == "Hired":
+            title = "Candidate hired"
+            sub = f"{app['candidate']} hired for {app['job']}"
+            icon_type = "hired"
+        elif status == "Rejected":
+            title = "Candidate rejected"
+            sub = f"{app['candidate']} rejected for {app['job']}"
+            icon_type = "close"
+        else:
+            title = f"Candidate {status.lower()}"
+            sub = f"{app['candidate']} {status.lower()} for {app['job']}"
+            icon_type = "check"
+            
         activities.append({
             "icon": icon_type,
             "title": title,
             "sub": sub,
-            "time": app["applied_at"].strftime("%Y-%m-%d %H:%M") if app["applied_at"] else "Just now"
+            "time": app["updated_at"].strftime("%Y-%m-%d %H:%M") if app["updated_at"] else "Just now"
         })
     if not activities:
         activities = []
@@ -218,11 +241,11 @@ def get_hr_dashboard(current_user=Depends(get_current_user), db=Depends(get_db))
         
         # Query 100% actual real-time counts from MySQL for THIS HR's jobs
         cursor.execute("""
-            SELECT COUNT(DISTINCT r.id) AS count 
-            FROM resumes r 
-            JOIN applications a ON r.candidate_id = a.candidate_id 
+            SELECT COUNT(a.id) AS count 
+            FROM applications a 
             JOIN jobs j ON a.job_id = j.id 
-            WHERE DATE(r.uploaded_at) = %s AND j.hr_id = %s
+            JOIN resumes r ON a.candidate_id = r.candidate_id
+            WHERE DATE(a.applied_at) = %s AND j.hr_id = %s
         """, (day_db, hr_id))
         day_uploaded = cursor.fetchone()["count"]
         
@@ -339,6 +362,11 @@ def get_hr_resumes(current_user=Depends(get_current_user), db=Depends(get_db)):
         
         # Calculate compatibility score for the specific job they applied to
         reqs = [s.strip() for s in row['job_requirements'].split(',')] if row['job_requirements'] else []
+        
+        # Prioritize skills that match the job requirements (case-insensitive)
+        if reqs:
+            reqs_lower = [r.lower() for r in reqs]
+            skills_matched.sort(key=lambda s: (0 if s.lower() in reqs_lower else 1, -len(s)))
         match_score = calculate_ats_score(row["extracted_text"] if row["extracted_text"] else "", reqs)
             
         status = "Strong Match" if match_score >= 70 else ("Good Match" if match_score >= 45 else "Low Match")
@@ -372,7 +400,7 @@ def get_hr_interviews(current_user=Depends(get_current_user), db=Depends(get_db)
     conn, cursor = db
     cursor.execute("""
         SELECT 
-            a.id, a.applied_at, a.status, a.interview_date, a.interview_time, a.interview_meet_link,
+            a.id, a.applied_at, a.status, a.interview_date, a.interview_time, a.interview_meet_link, a.interview_code,
             u.name AS candidate_name, u.email AS candidate_email,
             j.title AS job_title, j.company AS job_company, j.requirements AS job_requirements,
             r.extracted_text
@@ -426,8 +454,9 @@ def get_hr_interviews(current_user=Depends(get_current_user), db=Depends(get_db)
             "role": row["job_title"],
             "time": db_time if db_time else ("11:00 AM" if idx % 2 == 0 else "02:30 PM"),
             "date": db_date if db_date else ("Today" if idx == 0 else "Tomorrow" if idx == 1 else "Upcoming"),
-            "type": "Google Meet",
-            "meet_link": db_link if db_link else "https://meet.google.com/new",
+            "type": "Jitsi Meet",
+            "meet_link": db_link if db_link else "https://meet.ffmuc.net/SmartHire-Room",
+            "interview_code": row["interview_code"],
             "status": status,
             "rating": str(round(4.0 + (job_score % 10) / 10, 1)) if job_score else "4.2"
         })

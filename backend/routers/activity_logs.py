@@ -35,13 +35,26 @@ def get_activity_logs(current_user=Depends(get_current_user), db=Depends(get_db)
         raise HTTPException(status_code=404, detail="User not found")
         
     user_name = user["name"]
+    role = current_user.get("role")
     
-    # 2. Select logs only for this specific HR user matching the 'hr' role (preventing candidate name collisions)
-    cursor.execute("""
-        SELECT * FROM activity_logs 
-        WHERE user_name = %s AND (LOWER(role) = 'hr' OR LOWER(role) = 'recruiter')
-        ORDER BY id DESC LIMIT 50
-    """, (user_name,))
+    # 2. Select logs depending on role
+    if role == "hr":
+        cursor.execute("""
+            SELECT * FROM activity_logs 
+            WHERE user_name = %s AND (LOWER(role) = 'hr' OR LOWER(role) = 'recruiter')
+            ORDER BY id DESC LIMIT 50
+        """, (user_name,))
+    else:
+        # Candidate notifications: exclude administrative logs ('Logged In', 'Registered', 'Updated Profile')
+        cursor.execute("""
+            SELECT * FROM activity_logs 
+            WHERE (
+                (user_name = %s AND LOWER(role) = 'candidate' AND action NOT IN ('Logged In', 'Registered', 'Updated Profile'))
+                OR (target = %s AND (LOWER(role) LIKE '%hr%' OR LOWER(role) LIKE '%recruiter%') AND action NOT IN ('Logged In', 'Registered', 'Updated Profile', 'Posted Job', 'Deleted Job', 'Updated Job'))
+            )
+            ORDER BY id DESC LIMIT 50
+        """, (user_name, user_name))
+        
     logs = cursor.fetchall()
     
     if not logs:
