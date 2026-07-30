@@ -13,7 +13,7 @@ JWT_ALGORITHM = "HS256"
 # Token Generate karne ka function
 def create_access_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(hours=24) # Token 24 ghante tak valid rahega
+    expire = datetime.utcnow() + timedelta(hours=24) 
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, JWT_SECRET, algorithm=JWT_ALGORITHM)
 

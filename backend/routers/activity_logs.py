@@ -41,7 +41,7 @@ def get_activity_logs(current_user=Depends(get_current_user), db=Depends(get_db)
     if role == "hr":
         cursor.execute("""
             SELECT * FROM activity_logs 
-            WHERE user_name = %s AND (LOWER(role) = 'hr' OR LOWER(role) = 'recruiter')
+            WHERE user_name = %s AND (LOWER(role) LIKE '%%hr%%' OR LOWER(role) LIKE '%%recruiter%%')
             ORDER BY id DESC LIMIT 50
         """, (user_name,))
     else:
