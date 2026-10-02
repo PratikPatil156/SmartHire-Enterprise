@@ -310,12 +310,13 @@ def update_user_profile(user_id: int, profile: ProfileSchema, db=Depends(get_db)
             update_user_fields.append("name = %s")
             params.append(profile.name)
         if profile.email:
+            clean_email = profile.email.strip().lower()
             # Check unique email constraint
-            cursor.execute("SELECT id FROM users WHERE email = %s AND id != %s", (profile.email, user_id))
+            cursor.execute("SELECT id FROM users WHERE email = %s AND id != %s", (clean_email, user_id))
             if cursor.fetchone():
                 raise HTTPException(status_code=400, detail="Email is already in use by another user")
             update_user_fields.append("email = %s")
-            params.append(profile.email)
+            params.append(clean_email)
             
         params.append(user_id)
         update_user_query = f"UPDATE users SET {', '.join(update_user_fields)} WHERE id = %s"

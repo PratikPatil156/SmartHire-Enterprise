@@ -115,3 +115,87 @@ def get_resume_analysis(job_id: int = None, current_user=Depends(get_current_use
         print(f"Error syncing overall_score: {e}")
         
     return report
+
+import os
+from fastapi.responses import FileResponse
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+
+@router.get("/download/{candidate_id}")
+def download_resume(candidate_id: int, current_user=Depends(get_current_user), db=Depends(get_db)):
+    # Candidate can download their own, HR can download any candidate's resume
+    if current_user.get("role") != "hr" and current_user.get("user_id") != candidate_id:
+        raise HTTPException(status_code=403, detail="You do not have permission to download this resume")
+
+    conn, cursor = db
+    cursor.execute("""
+        SELECT r.*, u.name, u.email, up.phone, up.location
+        FROM resumes r
+        JOIN users u ON r.candidate_id = u.id
+        LEFT JOIN user_profiles up ON u.id = up.user_id
+        WHERE r.candidate_id = %s
+    """, (candidate_id,))
+    resume = cursor.fetchone()
+
+    if not resume:
+        raise HTTPException(status_code=404, detail="No resume found for this candidate")
+
+    file_name = resume.get("file_name") or f"Candidate_{candidate_id}_Resume.pdf"
+    if not file_name.lower().endswith(".pdf"):
+        file_name += ".pdf"
+
+    upload_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads", "resumes")
+    os.makedirs(upload_dir, exist_ok=True)
+
+    # 1. Check if physical file exists via stored file_path
+    file_path = resume.get("file_path")
+    if file_path and os.path.exists(file_path):
+        return FileResponse(file_path, media_type="application/pdf", filename=file_name)
+
+    # 2. Check standard saved location on disk
+    standard_file_path = os.path.join(upload_dir, f"{candidate_id}_{resume['file_name']}")
+    if os.path.exists(standard_file_path):
+        return FileResponse(standard_file_path, media_type="application/pdf", filename=file_name)
+
+    # 3. If file not on disk (e.g. prior uploads), generate a clean, professional PDF from extracted_text
+    extracted_text = resume.get("extracted_text") or "No resume content available."
+    generated_pdf_path = os.path.join(upload_dir, f"{candidate_id}_{file_name}")
+
+    try:
+        doc = SimpleDocTemplate(generated_pdf_path, pagesize=letter, leftMargin=36, rightMargin=36, topMargin=36, bottomMargin=36)
+        styles = getSampleStyleSheet()
+
+        name_style = ParagraphStyle('NameStyle', parent=styles['Heading1'], fontSize=18, leading=22, textColor=colors.HexColor('#0f172a'))
+        contact_style = ParagraphStyle('ContactStyle', parent=styles['Normal'], fontSize=10, leading=14, textColor=colors.HexColor('#475569'))
+        body_style = ParagraphStyle('BodyStyle', parent=styles['Normal'], fontSize=9, leading=13, textColor=colors.HexColor('#334155'))
+
+        story = [
+            Paragraph(resume.get('name') or 'Candidate Resume', name_style),
+            Paragraph(f"Email: {resume.get('email', 'N/A')} | Phone: {resume.get('phone', 'N/A')} | Location: {resume.get('location', 'N/A')}", contact_style),
+            Spacer(1, 8),
+            HRFlowable(width="100%", thickness=1, color=colors.HexColor('#cbd5e1'), spaceBefore=2, spaceAfter=10)
+        ]
+
+        for line in extracted_text.split('\n'):
+            l = line.strip()
+            if l:
+                safe_l = l.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                story.append(Paragraph(safe_l, body_style))
+                story.append(Spacer(1, 2))
+
+        doc.build(story)
+
+        # Update file_path in database
+        try:
+            cursor.execute("UPDATE resumes SET file_path = %s WHERE candidate_id = %s", (generated_pdf_path, candidate_id))
+            conn.commit()
+        except Exception:
+            pass
+
+        return FileResponse(generated_pdf_path, media_type="application/pdf", filename=file_name)
+    except Exception as e:
+        print(f"Error generating fallback resume PDF: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve or generate resume file")
+

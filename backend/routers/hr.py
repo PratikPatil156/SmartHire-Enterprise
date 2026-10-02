@@ -106,7 +106,7 @@ def get_hr_dashboard(current_user=Depends(get_current_user), db=Depends(get_db))
             a.id, a.status, a.applied_at, a.job_id, a.candidate_id,
             u.name AS candidate_name, u.email AS candidate_email,
             j.title AS job_title, j.company AS job_company, j.requirements AS job_requirements,
-            r.extracted_text
+            r.extracted_text, r.file_name
         FROM applications a
         JOIN users u ON a.candidate_id = u.id
         JOIN jobs j ON a.job_id = j.id
@@ -142,7 +142,9 @@ def get_hr_dashboard(current_user=Depends(get_current_user), db=Depends(get_db))
             "job_title": row["job_title"],
             "job_company": row["job_company"],
             "ai_score": job_score,
-            "skills": skills_matched[:3] # dynamic skills preview
+            "skills": skills_matched[:3], # dynamic skills preview
+            "file_name": row.get("file_name") or "Resume.pdf",
+            "has_resume": bool(row.get("extracted_text") or row.get("file_name"))
         })
 
     # F. Skills Distribution (Pie Chart)

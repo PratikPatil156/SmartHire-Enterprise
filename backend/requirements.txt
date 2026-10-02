@@ -7,3 +7,8 @@ bcrypt
 pydantic[email]
 pypdf
 python-multipart
+reportlab
+
+
+
+# python -m uvicorn main:app --reload

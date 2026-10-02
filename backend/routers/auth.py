@@ -25,14 +25,15 @@ class LoginSchema(BaseModel):
 @router.post("/register")
 def register(user: RegisterSchema, db=Depends(get_db)):
     conn, cursor = db
-    cursor.execute("SELECT id FROM users WHERE email = %s", (user.email,))
+    clean_email = user.email.strip().lower()
+    cursor.execute("SELECT id FROM users WHERE email = %s", (clean_email,))
     if cursor.fetchone():
         raise HTTPException(status_code=400, detail="Email already registered!")
     
     hashed_password = bcrypt.hashpw(user.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     
     query = "INSERT INTO users (name, email, password, role, company) VALUES (%s, %s, %s, %s, %s)"
-    cursor.execute(query, (user.name, user.email, hashed_password, user.role, user.company))
+    cursor.execute(query, (user.name, clean_email, hashed_password, user.role, user.company))
     conn.commit()
     log_activity(db, user.name, "Registered", user.name, user.role.capitalize(), f"{user.role.capitalize()} account created successfully.", "auth")
     return {"message": "Registration Successful!"}
@@ -41,9 +42,10 @@ def register(user: RegisterSchema, db=Depends(get_db)):
 @router.post("/login")
 def login(credentials: LoginSchema, db=Depends(get_db)):
     conn, cursor = db
+    clean_email = credentials.email.strip().lower()
     
     # User ko email se dhoondo
-    cursor.execute("SELECT * FROM users WHERE email = %s", (credentials.email,))
+    cursor.execute("SELECT * FROM users WHERE email = %s", (clean_email,))
     user = cursor.fetchone()
     
     if not user:
@@ -116,14 +118,21 @@ async def upload_resume(user_id: int, file: UploadFile = File(...), db=Depends(g
         matched_jobs_list.sort(key=lambda x: int(x["match"].replace("%","")), reverse=True)
         overall_score = int(total_score / len(all_jobs)) if all_jobs else 0
         
-        # 4. SAVE TO DATABASE (resumes table)
+        # 4. SAVE TO DISK AND DATABASE (resumes table)
+        upload_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads", "resumes")
+        os.makedirs(upload_dir, exist_ok=True)
+        safe_filename = f"{user_id}_{file.filename}"
+        saved_file_path = os.path.join(upload_dir, safe_filename)
+        with open(saved_file_path, "wb") as f_out:
+            f_out.write(contents)
+
         cursor.execute("SELECT id FROM resumes WHERE candidate_id = %s", (user_id,))
         if cursor.fetchone():
-            cursor.execute("UPDATE resumes SET file_name=%s, extracted_text=%s, overall_score=%s WHERE candidate_id=%s", 
-                           (file.filename, resume_text, overall_score, user_id))
+            cursor.execute("UPDATE resumes SET file_name=%s, extracted_text=%s, overall_score=%s, file_path=%s WHERE candidate_id=%s", 
+                           (file.filename, resume_text, overall_score, saved_file_path, user_id))
         else:
-            cursor.execute("INSERT INTO resumes (candidate_id, file_name, extracted_text, overall_score) VALUES (%s, %s, %s, %s)", 
-                           (user_id, file.filename, resume_text, overall_score))
+            cursor.execute("INSERT INTO resumes (candidate_id, file_name, extracted_text, overall_score, file_path) VALUES (%s, %s, %s, %s, %s)", 
+                           (user_id, file.filename, resume_text, overall_score, saved_file_path))
         
         # --- NEW: Auto-sync extracted skills, phone, and location to user_profiles table ---
         parsed_phone = "Not Specified"

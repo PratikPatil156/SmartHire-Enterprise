@@ -54,6 +54,7 @@ const Candidates = () => {
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [showStatusFilter, setShowStatusFilter] = useState(false);
   const [toast, setToast] = useState(null);
+  const [downloadingId, setDownloadingId] = useState(null);
 
   // Dynamic Interview Scheduling Modal State
   const [scheduleModal, setScheduleModal] = useState({
@@ -172,6 +173,23 @@ const Candidates = () => {
       showToast(error.message || error || "Failed to update status.", "error");
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const handleDownloadResume = async (candidateId, fileName, candidateName) => {
+    if (!candidateId) {
+      showToast("Candidate ID not found.", "error");
+      return;
+    }
+    setDownloadingId(candidateId);
+    try {
+      const cleanName = fileName || `${candidateName || 'Candidate'}_Resume.pdf`;
+      await appsService.downloadResume(candidateId, cleanName);
+      showToast("Resume downloaded successfully!", "success");
+    } catch (err) {
+      showToast(err.message || err || "Failed to download resume.", "error");
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -300,6 +318,7 @@ const Candidates = () => {
                     <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Applied For</th>
                     <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">AI Score</th>
                     <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Recruitment Tags</th>
+                    <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">Resume</th>
                     <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
                     <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
                   </tr>
@@ -385,6 +404,23 @@ const Candidates = () => {
                             </div>
                           </td>
 
+                          {/* Resume Download Column */}
+                          <td className="px-6 py-5 text-center">
+                            <button
+                              onClick={() => handleDownloadResume(person.candidate_id, person.file_name, person.candidate_name)}
+                              disabled={downloadingId === person.candidate_id}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-600 hover:text-white border border-blue-200 shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                              title={`Download ${person.candidate_name}'s Resume`}
+                            >
+                              {downloadingId === person.candidate_id ? (
+                                <Loader2 size={13} className="animate-spin" />
+                              ) : (
+                                <Download size={13} />
+                              )}
+                              <span>Download</span>
+                            </button>
+                          </td>
+
                           <td className="px-6 py-5">
                             <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wide border ${
                               person.status?.toLowerCase() === 'hired' ? 'bg-green-50 text-green-700 border-green-100' : 
@@ -419,7 +455,7 @@ const Candidates = () => {
                     })
                   ) : (
                     <tr>
-                      <td colSpan="6" className="text-center py-20 text-slate-400 text-sm">
+                      <td colSpan="7" className="text-center py-20 text-slate-400 text-sm">
                         No applications found.
                       </td>
                     </tr>
@@ -496,6 +532,17 @@ const Candidates = () => {
                           </div>
                         </div>
                       )}
+                      {/* Resume Download Button */}
+                      <div className="pt-2 border-t border-slate-100">
+                        <button
+                          onClick={() => handleDownloadResume(person.candidate_id, person.file_name, person.candidate_name)}
+                          disabled={downloadingId === person.candidate_id}
+                          className="w-full py-2 px-3 rounded-xl text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-600 hover:text-white border border-blue-200 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+                        >
+                          {downloadingId === person.candidate_id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                          <span>Download Resume PDF</span>
+                        </button>
+                      </div>
 
                       {/* Actions */}
                       <div className="flex items-center justify-between border-t border-slate-100 pt-3 gap-2">

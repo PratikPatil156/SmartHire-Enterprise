@@ -43,3 +43,4 @@ Thumbs.db
 # Temporary backend logs
 backend/scratch/
 backend/sent_emails/
+backend/uploads/

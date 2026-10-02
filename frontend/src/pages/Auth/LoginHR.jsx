@@ -35,8 +35,9 @@ const LoginHR = () => {
     setErrorMsg("");
     setLoading(true);
     try {
+      const cleanEmail = (data.email || "").trim().toLowerCase();
       const res = await authService.login({
-        email: data.email,
+        email: cleanEmail,
         password: data.password
       });
 
@@ -96,6 +97,9 @@ const LoginHR = () => {
               {...register("email")} 
               type="email" 
               placeholder="Work Email" 
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck="false"
               required 
               className="w-full pl-12 pr-4 py-4 bg-[#0f172a] border border-slate-700 text-white rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-600" 
             />

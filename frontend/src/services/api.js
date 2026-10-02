@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Hamare Python FastAPI backend ka URL
-const API_URL = 'http://127.0.0.1:8000/api';
+// Hamare Python FastAPI backend ka URL (Local fallback ya Live Vercel Environment Variable)
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -130,6 +130,32 @@ export const appsService = {
       return response.data;
     } catch (error) {
       throw error.response?.data?.detail || "Failed to update status.";
+    }
+  },
+
+  downloadResume: async (candidateId, fileName = 'resume.pdf') => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://127.0.0.1:8000/api/resume/download/${candidateId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || "Failed to download resume");
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      throw error.message || error;
     }
   }
 };

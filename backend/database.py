@@ -205,7 +205,13 @@ def init_db():
         cursor.execute(f"DELETE FROM skills_catalog WHERE name IN ({format_strings})", unwanted_tools)
         conn.commit()
     except Exception as e:
-        print(f"Error cleaning unwanted tools from skills_catalog: {e}")
+        pass
+
+    try:
+        cursor.execute("ALTER TABLE resumes ADD COLUMN file_path VARCHAR(500) DEFAULT NULL")
+        conn.commit()
+    except Exception:
+        pass
 
     cursor.close()
     conn.close()

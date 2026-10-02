@@ -52,7 +52,7 @@ def get_applications(current_user=Depends(get_current_user), db=Depends(get_db))
                 a.interview_date, a.interview_time, a.interview_meet_link, a.interview_code,
                 u.name AS candidate_name, u.email AS candidate_email,
                 j.title AS job_title, j.company AS job_company, j.requirements AS job_requirements,
-                r.extracted_text,
+                r.extracted_text, r.file_name,
                 GROUP_CONCAT(at.tag_name) AS assigned_tags
             FROM applications a
             JOIN users u ON a.candidate_id = u.id
@@ -93,6 +93,8 @@ def get_applications(current_user=Depends(get_current_user), db=Depends(get_db))
                 "ai_score": job_score,
                 "tags": tags_list,
                 "skills": matched_skills,
+                "file_name": row.get("file_name") or "Resume.pdf",
+                "has_resume": bool(row.get("extracted_text") or row.get("file_name")),
                 "interview_date": row["interview_date"],
                 "interview_time": row["interview_time"],
                 "interview_meet_link": row["interview_meet_link"],
@@ -201,3 +203,22 @@ def update_application_status(id: int, payload: UpdateStatusSchema, current_user
         "message": "Status updated successfully",
         "interview_code": passcode
     }
+
+@router.get("/applications/{id}/resume")
+def download_application_resume(id: int, current_user=Depends(get_current_user), db=Depends(get_db)):
+    if current_user.get("role") != "hr":
+        raise HTTPException(status_code=403, detail="Only HR can download applicant resumes")
+    conn, cursor = db
+    cursor.execute("""
+        SELECT a.candidate_id 
+        FROM applications a 
+        JOIN jobs j ON a.job_id = j.id 
+        WHERE a.id = %s AND j.hr_id = %s
+    """, (id, current_user["user_id"]))
+    row = cursor.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Application not found or unauthorized")
+    
+    from routers.resume import download_resume
+    return download_resume(row["candidate_id"], current_user=current_user, db=db)
+

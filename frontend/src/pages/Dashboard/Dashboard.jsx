@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Eye, Plus, UserCheck, Calendar, X, Clock, Users, FileText, ChevronRight, BriefcaseBusiness, Award
+  Eye, Plus, UserCheck, Calendar, X, Clock, Users, FileText, ChevronRight, BriefcaseBusiness, Award,
+  Download, Loader2, CheckCircle2, AlertCircle
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell
 } from 'recharts';
-import { hrService } from '../../services/api';
+import { hrService, appsService } from '../../services/api';
 
 const fallbackGraphData = [];
 
@@ -16,6 +17,32 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [downloadingId, setDownloadingId] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+    setTimeout(() => {
+      setToast(null);
+    }, 4000);
+  };
+
+  const handleDownloadResume = async (candidateId, fileName, candidateName) => {
+    if (!candidateId) {
+      showToast("Candidate ID not found.", "error");
+      return;
+    }
+    setDownloadingId(candidateId);
+    try {
+      const cleanName = fileName || `${candidateName || 'Candidate'}_Resume.pdf`;
+      await appsService.downloadResume(candidateId, cleanName);
+      showToast("Resume downloaded successfully!", "success");
+    } catch (err) {
+      showToast(err.message || err || "Failed to download resume.", "error");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   useEffect(() => {
     const fetchDashboard = async () => {
@@ -79,6 +106,7 @@ const Dashboard = () => {
         const statusClass = c.status?.toLowerCase() === 'hired' ? 'bg-green-50 text-green-700 border border-green-100' : (c.status?.toLowerCase() === 'rejected' ? 'bg-red-50 text-red-700 border border-red-100' : (c.status?.toLowerCase() === 'applied' ? 'bg-amber-50 text-amber-700 border border-amber-100' : (['interviewing', 'shortlisted'].includes(c.status?.toLowerCase()) ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-slate-50 text-slate-600 border border-slate-100')));
         return {
           id: c.candidate_id || c.id,
+          candidateId: c.candidate_id || c.id,
           name: c.candidate_name || "Unknown Candidate",
           email: c.candidate_email || "no-email@smarthire.com",
           role: c.job_title || "Unknown Role",
@@ -86,7 +114,8 @@ const Dashboard = () => {
           status: c.status || "Applied",
           statusClass,
           scoreClass,
-          skills: c.skills && c.skills.length > 0 ? c.skills : ["General"]
+          skills: c.skills && c.skills.length > 0 ? c.skills : ["General"],
+          fileName: c.file_name
         };
       }).filter(Boolean)
     : [];
@@ -304,12 +333,27 @@ const Dashboard = () => {
                           </span>
                         </td>
                         <td className="py-4 text-center">
-                          <button
-                            onClick={() => navigate('/candidates', { state: { highlightCandidateId: c.id } })}
-                            className="p-2 text-blue-500 bg-blue-50 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm"
-                          >
-                            <Eye size={16} />
-                          </button>
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => handleDownloadResume(c.candidateId, c.fileName, c.name)}
+                              disabled={downloadingId === c.candidateId}
+                              title={`Download ${c.name}'s Resume`}
+                              className="p-2 text-blue-600 bg-blue-50 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm disabled:opacity-50"
+                            >
+                              {downloadingId === c.candidateId ? (
+                                <Loader2 size={15} className="animate-spin" />
+                              ) : (
+                                <Download size={15} />
+                              )}
+                            </button>
+                            <button
+                              onClick={() => navigate('/candidates', { state: { highlightCandidateId: c.id } })}
+                              title="View Candidate"
+                              className="p-2 text-slate-500 bg-slate-100 rounded-xl hover:bg-slate-700 hover:text-white transition-all shadow-sm"
+                            >
+                              <Eye size={15} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -336,12 +380,27 @@ const Dashboard = () => {
                           <div className="text-[11px] text-slate-400 truncate max-w-[120px]">{c.email}</div>
                         </div>
                       </div>
-                      <button
-                        onClick={() => navigate('/candidates', { state: { highlightCandidateId: c.id } })}
-                        className="p-2 text-blue-500 bg-white border border-slate-200 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm shrink-0"
-                      >
-                        <Eye size={14} />
-                      </button>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          onClick={() => handleDownloadResume(c.candidateId, c.fileName, c.name)}
+                          disabled={downloadingId === c.candidateId}
+                          title="Download Resume"
+                          className="p-2 text-blue-600 bg-white border border-slate-200 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm shrink-0 disabled:opacity-50"
+                        >
+                          {downloadingId === c.candidateId ? (
+                            <Loader2 size={13} className="animate-spin" />
+                          ) : (
+                            <Download size={13} />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => navigate('/candidates', { state: { highlightCandidateId: c.id } })}
+                          title="View Details"
+                          className="p-2 text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-700 hover:text-white transition-all shadow-sm shrink-0"
+                        >
+                          <Eye size={13} />
+                        </button>
+                      </div>
                     </div>
                     <div className="flex justify-between items-center text-xs border-t border-slate-100 pt-2.5">
                       <div>
@@ -407,6 +466,26 @@ const Dashboard = () => {
 
         </div>
       </main>
+
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed bottom-8 right-8 z-50 flex items-center gap-3 bg-slate-900 text-white px-5 py-4 rounded-2xl shadow-2xl border border-slate-800 animate-in slide-in-from-bottom-5 fade-in duration-300">
+          <div className={`p-1.5 rounded-lg ${
+            toast.type === 'success' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
+          }`}>
+            {toast.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+          </div>
+          <div>
+            <p className="text-sm font-extrabold tracking-tight">{toast.message}</p>
+          </div>
+          <button 
+            onClick={() => setToast(null)}
+            className="text-slate-400 hover:text-white transition-colors ml-4 p-1 hover:bg-slate-800 rounded-lg"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 };

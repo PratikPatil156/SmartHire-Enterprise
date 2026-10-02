@@ -35,9 +35,10 @@ const RegisterCandidate = () => {
     }
     setLoading(true);
     try {
+      const cleanEmail = (data.email || "").trim().toLowerCase();
       const registerData = {
         name: data.fullName,
-        email: data.email,
+        email: cleanEmail,
         password: data.password,
         role: 'candidate'
       };
@@ -45,7 +46,7 @@ const RegisterCandidate = () => {
       
       // Seed default local representation for fallback credentials checks
       localStorage.setItem('candidate_user', JSON.stringify({
-        email: data.email,
+        email: cleanEmail,
         password: data.password,
         fullName: data.fullName
       }));
@@ -114,6 +115,9 @@ const RegisterCandidate = () => {
               {...register("email")} 
               type="email" 
               placeholder="Email Address" 
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck="false"
               required 
               className="w-full pl-12 pr-4 py-4 bg-[#0f172a] border border-slate-700 text-white rounded-2xl outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all placeholder:text-slate-600" 
             />

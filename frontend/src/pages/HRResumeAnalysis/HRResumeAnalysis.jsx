@@ -13,12 +13,30 @@ const HRResumeAnalysis = () => {
   const [selectedRole, setSelectedRole] = useState("All");
   const [scoreFilter, setScoreFilter] = useState("All");
   const [toast, setToast] = useState(null);
+  const [downloadingId, setDownloadingId] = useState(null);
 
   const showToast = (message, type = "success") => {
     setToast({ message, type });
     setTimeout(() => {
       setToast(null);
     }, 4000);
+  };
+
+  const handleDownloadResume = async (candidateId, fileName, candidateName) => {
+    if (!candidateId) {
+      showToast("Candidate ID not found.", "error");
+      return;
+    }
+    setDownloadingId(candidateId);
+    try {
+      const cleanName = fileName || `${candidateName || 'Candidate'}_Resume.pdf`;
+      await appsService.downloadResume(candidateId, cleanName);
+      showToast("Resume downloaded successfully!", "success");
+    } catch (err) {
+      showToast(err.message || err || "Failed to download resume.", "error");
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   const fetchCandidates = async () => {
@@ -231,6 +249,7 @@ const HRResumeAnalysis = () => {
                     <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Top Skills</th>
                     <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status Fit</th>
                     <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Application</th>
+                    <th className="p-5 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Resume</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
@@ -285,12 +304,27 @@ const HRResumeAnalysis = () => {
                           {item.status}
                         </span>
                       </td>
+                      <td className="p-5 text-center">
+                        <button
+                          onClick={() => handleDownloadResume(item.candidate_id, item.file_name, item.candidate_name)}
+                          disabled={downloadingId === item.candidate_id}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-600 hover:text-white border border-blue-200 shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                          title={`Download ${item.candidate_name}'s Resume`}
+                        >
+                          {downloadingId === item.candidate_id ? (
+                            <Loader2 size={13} className="animate-spin" />
+                          ) : (
+                            <Download size={13} />
+                          )}
+                          <span>Download</span>
+                        </button>
+                      </td>
                     </tr>
                   ))}
 
                   {filteredCandidates.length === 0 && (
                     <tr>
-                      <td colSpan="6" className="text-center py-16 text-slate-400 font-semibold text-sm">
+                      <td colSpan="7" className="text-center py-16 text-slate-400 font-semibold text-sm">
                         No candidate resume analysis reports found.
                       </td>
                     </tr>
@@ -351,6 +385,23 @@ const HRResumeAnalysis = () => {
                         <span className="text-[10px] text-slate-400 italic">No skills listed</span>
                       )}
                     </div>
+                  </div>
+
+                  {/* Resume Document & Download */}
+                  <div className="border-t border-slate-100 pt-3 flex items-center justify-between">
+                    <span className="text-[9px] text-slate-400 font-bold uppercase">Resume File</span>
+                    <button
+                      onClick={() => handleDownloadResume(item.candidate_id, item.file_name, item.candidate_name)}
+                      disabled={downloadingId === item.candidate_id}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold text-blue-600 bg-white hover:bg-blue-600 hover:text-white border border-blue-200 shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      {downloadingId === item.candidate_id ? (
+                        <Loader2 size={13} className="animate-spin" />
+                      ) : (
+                        <Download size={13} />
+                      )}
+                      <span>Download PDF</span>
+                    </button>
                   </div>
 
                   {/* Application Status Badge */}
