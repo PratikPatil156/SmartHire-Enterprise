@@ -8,7 +8,7 @@ def init_db():
     conn = mysql.connector.connect(
         host=os.getenv("DB_HOST", "localhost"),
         user=os.getenv("DB_USER", "root"),
-        password=os.getenv("DB_PASSWORD", "Pratik@143")
+        password=os.getenv("DB_PASSWORD", "")
     )
     cursor = conn.cursor()
     cursor.execute(f"CREATE DATABASE IF NOT EXISTS {os.getenv('DB_NAME', 'smarthire_db')}")
@@ -230,7 +230,7 @@ def get_db():
     conn = mysql.connector.connect(
         host=os.getenv("DB_HOST", "localhost"),
         user=os.getenv("DB_USER", "root"),
-        password=os.getenv("DB_PASSWORD", "Pratik@143"),
+        password=os.getenv("DB_PASSWORD", ""),
         database=os.getenv("DB_NAME", "smarthire_db")
     )
     cursor = conn.cursor(dictionary=True)
