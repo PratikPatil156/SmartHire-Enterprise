@@ -6,13 +6,14 @@ load_dotenv()
 
 def init_db():
     conn = mysql.connector.connect(
-        host=os.getenv("DB_HOST", "localhost"),
-        user=os.getenv("DB_USER", "root"),
-        password=os.getenv("DB_PASSWORD", "")
+        host=os.getenv("DB_HOST"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD")
     )
     cursor = conn.cursor()
-    cursor.execute(f"CREATE DATABASE IF NOT EXISTS {os.getenv('DB_NAME', 'smarthire_db')}")
-    cursor.execute(f"USE {os.getenv('DB_NAME', 'smarthire_db')}")
+    db_name = os.getenv("DB_NAME")
+    cursor.execute(f"CREATE DATABASE IF NOT EXISTS {db_name}")
+    cursor.execute(f"USE {db_name}")
     
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
@@ -228,10 +229,10 @@ def log_activity(db, user_name: str, action: str, target: str, role: str, detail
 
 def get_db():
     conn = mysql.connector.connect(
-        host=os.getenv("DB_HOST", "localhost"),
-        user=os.getenv("DB_USER", "root"),
-        password=os.getenv("DB_PASSWORD", ""),
-        database=os.getenv("DB_NAME", "smarthire_db")
+        host=os.getenv("DB_HOST"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        database=os.getenv("DB_NAME")
     )
     cursor = conn.cursor(dictionary=True)
     try:
