@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # JWT Configurations
-JWT_SECRET = os.getenv("JWT_SECRET", "smarthire_default_secret_key")
+JWT_SECRET = os.getenv("JWT_SECRET")
 JWT_ALGORITHM = "HS256"
 
 # Token Generate karne ka function
