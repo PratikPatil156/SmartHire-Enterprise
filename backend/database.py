@@ -2,7 +2,8 @@ import mysql.connector
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+load_dotenv(dotenv_path=env_path)
 
 def init_db():
     conn = mysql.connector.connect(
@@ -49,6 +50,7 @@ def init_db():
             extracted_text LONGTEXT,
             overall_score INT DEFAULT 0,
             uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            file_path VARCHAR(500) DEFAULT NULL,
             FOREIGN KEY (candidate_id) REFERENCES users(id) ON DELETE CASCADE
         )
     """)
@@ -89,7 +91,7 @@ def init_db():
             id INT AUTO_INCREMENT PRIMARY KEY,
             user_name VARCHAR(100) NOT NULL,
             action VARCHAR(100) NOT NULL,
-            target VARCHAR(100) NOT NULL,
+            target VARCHAR(255) NOT NULL,
             role VARCHAR(100) NOT NULL,
             details TEXT,
             event_type VARCHAR(50) DEFAULT 'system',
@@ -111,8 +113,8 @@ def init_db():
         CREATE TABLE IF NOT EXISTS user_profiles (
             user_id INT PRIMARY KEY,
             avatar_image LONGTEXT,
-            phone VARCHAR(50),
-            location VARCHAR(100),
+            phone VARCHAR(100),
+            location VARCHAR(255),
             course_role VARCHAR(150),
             student_emp_id VARCHAR(50),
             about TEXT,
@@ -214,14 +216,27 @@ def init_db():
     except Exception:
         pass
 
+    try:
+        cursor.execute("ALTER TABLE user_profiles MODIFY location VARCHAR(255)")
+        cursor.execute("ALTER TABLE user_profiles MODIFY phone VARCHAR(100)")
+        cursor.execute("ALTER TABLE activity_logs MODIFY target VARCHAR(255)")
+        conn.commit()
+    except Exception:
+        pass
+
     cursor.close()
     conn.close()
 
 def log_activity(db, user_name: str, action: str, target: str, role: str, details: str, event_type: str = 'system'):
     try:
         conn, cursor = db
+        safe_user = str(user_name or "System")[:95]
+        safe_action = str(action or "Action")[:95]
+        safe_target = str(target or "Target")[:250]
+        safe_role = str(role or "System")[:95]
+        safe_event = str(event_type or "system")[:45]
         query = "INSERT INTO activity_logs (user_name, action, target, role, details, event_type) VALUES (%s, %s, %s, %s, %s, %s)"
-        cursor.execute(query, (user_name, action, target, role, details, event_type))
+        cursor.execute(query, (safe_user, safe_action, safe_target, safe_role, details, safe_event))
         conn.commit()
     except Exception as e:
         print(f"Error logging activity: {e}")

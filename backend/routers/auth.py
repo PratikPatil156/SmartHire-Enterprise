@@ -1,4 +1,6 @@
+import os
 import io
+import re
 import bcrypt
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
@@ -121,7 +123,8 @@ async def upload_resume(user_id: int, file: UploadFile = File(...), db=Depends(g
         # 4. SAVE TO DISK AND DATABASE (resumes table)
         upload_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads", "resumes")
         os.makedirs(upload_dir, exist_ok=True)
-        safe_filename = f"{user_id}_{file.filename}"
+        clean_filename = file.filename.replace(" ", "_")[:200]
+        safe_filename = f"{user_id}_{clean_filename}"
         saved_file_path = os.path.join(upload_dir, safe_filename)
         with open(saved_file_path, "wb") as f_out:
             f_out.write(contents)
@@ -129,86 +132,90 @@ async def upload_resume(user_id: int, file: UploadFile = File(...), db=Depends(g
         cursor.execute("SELECT id FROM resumes WHERE candidate_id = %s", (user_id,))
         if cursor.fetchone():
             cursor.execute("UPDATE resumes SET file_name=%s, extracted_text=%s, overall_score=%s, file_path=%s WHERE candidate_id=%s", 
-                           (file.filename, resume_text, overall_score, saved_file_path, user_id))
+                           (file.filename[:250], resume_text, overall_score, saved_file_path, user_id))
         else:
             cursor.execute("INSERT INTO resumes (candidate_id, file_name, extracted_text, overall_score, file_path) VALUES (%s, %s, %s, %s, %s)", 
-                           (user_id, file.filename, resume_text, overall_score, saved_file_path))
+                           (user_id, file.filename[:250], resume_text, overall_score, saved_file_path))
+        conn.commit()
         
         # --- NEW: Auto-sync extracted skills, phone, and location to user_profiles table ---
-        parsed_phone = "Not Specified"
-        parsed_location = "Not Specified"
-        parsed_skills = []
-        
-        import re
-        # Parse Phone Number
-        phone_match = re.search(r"(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}", resume_text)
-        if phone_match:
-            parsed_phone = phone_match.group(0).strip()
+        try:
+            parsed_phone = "Not Specified"
+            parsed_location = "Not Specified"
+            parsed_skills = []
             
-        # Parse Location
-        loc_patterns = [
-            r"(?:Location|Address|Residing in|Lives in)[:\s]+([^\n|]+)",
-            r"\b(?:Bangalore|Bengaluru|Mumbai|Delhi|Pune|Hyderabad|Chennai|Kolkata|Maharashtra|Karnataka|Telangana|Tamil\s*Nadu|India)\b"
-        ]
-        for pattern in loc_patterns:
-            match = re.search(pattern, resume_text, re.IGNORECASE)
-            if match:
-                if len(match.groups()) > 0 and match.group(1):
-                    parsed_location = match.group(1).strip()
-                else:
-                    parsed_location = match.group(0).strip()
-                break
+            import re
+            # Parse Phone Number
+            phone_match = re.search(r"(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}", resume_text)
+            if phone_match:
+                parsed_phone = phone_match.group(0).strip()
                 
-        from parser_utils import extract_skills
-        parsed_skills = extract_skills(resume_text, cursor)
-                
-        skills_str = ", ".join(parsed_skills) if parsed_skills else ""
-        
-        # Check if profile exists, if yes update it
-        cursor.execute("SELECT user_id FROM user_profiles WHERE user_id = %s", (user_id,))
-        if cursor.fetchone():
-            cursor.execute("""
-                UPDATE user_profiles 
-                SET phone = %s, location = %s, skills = %s 
-                WHERE user_id = %s
-            """, (
-                parsed_phone if parsed_phone != "Not Specified" else "",
-                parsed_location if parsed_location != "Not Specified" else "",
-                skills_str,
-                user_id
-            ))
-        else:
-            # Insert a profile with these skills
-            cursor.execute("SELECT COUNT(*) as count FROM users WHERE role = 'candidate' AND id <= %s", (user_id,))
-            cand_count_res = cursor.fetchone()
-            cand_count = cand_count_res['count'] if isinstance(cand_count_res, dict) else cand_count_res[0]
-            student_id = f"STU-2026-{str(cand_count).zfill(4)}"
+            # Parse Location
+            loc_patterns = [
+                r"(?:Location|Address|Residing in|Lives in)[:\s]+([^\n|]+)",
+                r"\b(?:Bangalore|Bengaluru|Mumbai|Delhi|Pune|Hyderabad|Chennai|Kolkata|Maharashtra|Karnataka|Telangana|Tamil\s*Nadu|India)\b"
+            ]
+            for pattern in loc_patterns:
+                match = re.search(pattern, resume_text, re.IGNORECASE)
+                if match:
+                    if len(match.groups()) > 0 and match.group(1):
+                        parsed_location = match.group(1).strip()
+                    else:
+                        parsed_location = match.group(0).strip()
+                    break
+                    
+            from parser_utils import extract_skills
+            parsed_skills = extract_skills(resume_text, cursor)
+                    
+            skills_str = ", ".join(parsed_skills) if parsed_skills else ""
+            clean_phone = (parsed_phone if parsed_phone != "Not Specified" else "")[:95]
+            clean_location = (parsed_location if parsed_location != "Not Specified" else "")[:245]
+            
+            # Check if profile exists, if yes update it
+            cursor.execute("SELECT user_id FROM user_profiles WHERE user_id = %s", (user_id,))
+            if cursor.fetchone():
+                cursor.execute("""
+                    UPDATE user_profiles 
+                    SET phone = %s, location = %s, skills = %s 
+                    WHERE user_id = %s
+                """, (clean_phone, clean_location, skills_str, user_id))
+            else:
+                # Insert a profile with these skills
+                cursor.execute("SELECT COUNT(*) as count FROM users WHERE role = 'candidate' AND id <= %s", (user_id,))
+                cand_count_res = cursor.fetchone()
+                cand_count = cand_count_res['count'] if isinstance(cand_count_res, dict) else cand_count_res[0]
+                student_id = f"STU-2026-{str(cand_count).zfill(4)}"
 
-            cursor.execute("""
-                INSERT INTO user_profiles 
-                (user_id, phone, location, course_role, student_emp_id, skills, 
-                 placement_ready, profile_status, profile_completed, backend_progress, 
-                 frontend_progress, interview_progress, placement_insights_title, placement_insights_desc) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (
-                user_id,
-                parsed_phone if parsed_phone != "Not Specified" else "",
-                parsed_location if parsed_location != "Not Specified" else "",
-                "SmartHire Candidate",
-                student_id,
-                skills_str,
-                None,
-                "Pending",
-                None,
-                0,
-                0,
-                0,
-                None,
-                None
-            ))
+                cursor.execute("""
+                    INSERT INTO user_profiles 
+                    (user_id, phone, location, course_role, student_emp_id, skills, 
+                     placement_ready, profile_status, profile_completed, backend_progress, 
+                     frontend_progress, interview_progress, placement_insights_title, placement_insights_desc) 
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (
+                    user_id,
+                    clean_phone,
+                    clean_location,
+                    "SmartHire Candidate",
+                    student_id,
+                    skills_str,
+                    None,
+                    "Pending",
+                    None,
+                    0,
+                    0,
+                    0,
+                    None,
+                    None
+                ))
+            conn.commit()
+        except Exception as profile_err:
+            print(f"Warning: Could not auto-sync profile details: {profile_err}")
 
-        conn.commit()
-        log_activity(db, user['name'], "Uploaded Resume", file.filename, "Candidate", f"Uploaded resume analyzed successfully with ATS compatibility match of {overall_score}%.", "ai")
+        try:
+            log_activity(db, user['name'], "Uploaded Resume", file.filename[:200], "Candidate", f"Uploaded resume analyzed successfully with ATS compatibility match of {overall_score}%.", "ai")
+        except Exception as log_err:
+            print(f"Warning: Could not log upload activity: {log_err}")
         
         return {
             "status": "Success",
@@ -217,6 +224,10 @@ async def upload_resume(user_id: int, file: UploadFile = File(...), db=Depends(g
             "recommended_jobs": matched_jobs_list
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Database saving failed.")
+        import traceback
+        traceback.print_exc()
+        print(f"Error during upload_resume: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database saving failed: {str(e)}")
